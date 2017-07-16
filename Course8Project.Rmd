@@ -1,0 +1,83 @@
+---
+title: "Course Project - Human Activity Recognition (HAR) Analysis"
+author: "Alex Aicken"
+date: "9 July 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+In this project, data from the Human Activity Recognition program is analysed. The data collected is from accelerometers on the forearm, belt and arm from doing barbell lifts in 5 different ways. In this project a model is built in order to predict the way in which the barbell was lifted. The accuracy of this is analysed and a prediction is made off a test data set. The random forest model built is very accurate (over 99% accuracy), as shown off the predictions from the training set.
+
+More information on the data is available from here:
+
+http://groupware.les.inf.puc-rio.br/har
+
+The data on how the barbell is lifted is in the __class__ variable - exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+## Load Data and Libraries
+
+```{r loadData, echo=TRUE}
+library(caret)
+set.seed(123)
+rawDataSet <- read.csv(file="http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", header=TRUE, sep=",")
+predictionDataSet <- read.csv(file="http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", header=TRUE, sep=",")
+```
+
+## Data Selection
+The following fields have been selected for building the model. Irrelevant fields - eg timestamps - have been left out.
+```{r dataSelection, echo=TRUE}
+columnSelection <- c(2,8,9,10,11,37,38,39,40,41,42,43,44,45,46,47,48,49,60,61,62,63,64,65,66,67,68,84,85,86,113,114,115,116,117,118,119,120,121,122,123,124,151,152,153,154,155,156,157,158,159,160)
+rawDataSet <- rawDataSet[,columnSelection]
+```
+
+## Build Models
+A random forest (model 1) and linear discriminant analysis (model 2) have been applied to the data. The training set is 80% of the training data, the test set is 20%.
+
+For cross-validation, I have used k-Fold cross validation, with k set to 10. This splits the input data into 10 groups, with 1 group used as the testing/validation data set and the others used as the training data sets. The average result is taken from this.
+
+```{r trainModels, echo=TRUE}
+inTrainCounter   <- createDataPartition(rawDataSet$classe, p=0.8, list=FALSE)
+trainDataSet <- rawDataSet[inTrainCounter,]
+testDataSet  <- rawDataSet[-inTrainCounter,]
+
+trainControl <- trainControl(method="cv", number=10)
+model1 <- train(classe~., trControl=trainControl, data=trainDataSet, method="rf")
+model2 <- train(classe~., trControl=trainControl, data=trainDataSet, method="lda")
+
+print(model1)
+print(model2)
+```
+
+## Confusion Matrices
+Observe from the below that the random forest (model 1) is more accurate than the linear discriminant analysis (model 2). The accuracy for model 1 is 99.41%, therefore the out of sample error is 0.59%. As a result, this is the model used to predict from the training set. See the confusion matrices for model 1 and model 2 below.
+
+### Model 1 - Random Forest
+```{r ConfusionMatrix, echo=TRUE}
+predictionTrain1 <- predict(model1, testDataSet)
+confusionMatrix(testDataSet$classe, predictionTrain1)
+```
+
+### Model 2 - LDA
+```{r ConfusionMatrix2, echo=TRUE}
+predictionTrain2 <- predict(model2, testDataSet)
+confusionMatrix(testDataSet$classe, predictionTrain2)
+```
+
+## Prediction on Test Data Set
+The below predicts the class variable from the test set given.
+```{r predictionTest, echo=TRUE}
+predictionTest <- predict(model1, predictionDataSet)
+```
+The prediction from the test set is `r predictionTest`.
+
+## Results Summary
+The random forest model (model 1) is accurate - the accuracy is 99.41% This is significantly more accurate than the LDA model (model 2). We have confidence in the results from model 1 and therefore in the predictions made off this data set.
+
+### Reference
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+
